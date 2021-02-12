@@ -1,24 +1,38 @@
 import torch
+import torch.optim as optim
+import neptune
+
 from torch.utils.data import DataLoader
 from torch import nn
 from dataset import MnistDataset
 from preprocess import transforms_train, transforms_test
 from model import MnistModel
 from torchinfo import summary
-import torch.optim as optim
-import neptune
+from validate import validate
+from sklearn.model_selection import train_test_split
 
-# Init Neptune
-neptune.init(project_qualified_name='dongkyuk/dacon-mnist',
-             api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTlmOGExYWUtNDRlOS00MTk1LThiOTQtOGY4MDkyZDAxZjY2In0=',
-             )
+# # Init Neptune
+# neptune.init(project_qualified_name='dongkyuk/dacon-mnist',
+#              api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTlmOGExYWUtNDRlOS00MTk1LThiOTQtOGY4MDkyZDAxZjY2In0=',
+#              )
 
-neptune.create_experiment()
+# neptune.create_experiment()
+
+# cuda cache 초기화
+torch.cuda.empty_cache()
 
 # Prepare Data
-trainset = MnistDataset(
-    'data/train', 'data/dirty_mnist_2nd_answer.csv', transforms_train)
-train_loader = DataLoader(trainset, batch_size=32, num_workers=8)
+full_dataset = MnistDataset('data/train', 'data/dirty_mnist_2nd_answer.csv', transforms_train)
+
+train_size = int(0.9 * len(full_dataset))
+test_size = len(full_dataset) - train_size
+
+print("Train size : {} / Test size : {}".format(train_size, test_size))
+
+train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+
+train_loader = DataLoader(train_dataset, batch_size=32)
+test_loader = DataLoader(test_dataset, batch_size=16)
 
 # Prepare Model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -30,9 +44,9 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 criterion = nn.MultiLabelSoftMarginLoss()
 
 # Train
-num_epochs = 10
+num_epochs = 100
 model.train()
-
+best_accuracy = 0
 for epoch in range(num_epochs):
     for i, (images, targets) in enumerate(train_loader):
         optimizer.zero_grad()
@@ -46,13 +60,25 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
+        val_loss, val_acc = validate(test_loader, model, criterion, epoch, device)        
+
         # Log and save
         if (i+1) % 10 == 0:
+            is_best = val_acc > best_accuracy
+            best_accuracy = max(val_acc, best_accuracy)
+
             outputs = outputs > 0.5
             acc = (outputs == targets).float().mean()
             print(f'Epoch {epoch}: Train loss {loss.item():.5f}, Train Accuracy {acc.item():.5f}')
-            neptune.log_metric('train loss', loss.item())
-            neptune.log_metric('train accuracy', acc.item())
-            torch.save(model, 'best.pth')
+            print(f'Epoch {epoch}: Val loss {val_loss.item():.5f}, Val Accuracy {val_acc.item():.5f}')
+
+            # neptune.log_metric('train loss', loss.item())
+            # neptune.log_metric('train accuracy', acc.item())
+            # neptune.log_metric('validation loss', val_loss.item())
+            # neptune.log_metric('validation accuracy', val_acc.item())
+            torch.save(model.state_dict(), 'data/recent.pth')
+
+            if is_best:
+                torch.save(model.state_dict(), 'data/best.pth')
 
 
