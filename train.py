@@ -11,12 +11,11 @@ from torchinfo import summary
 from validate import validate
 from sklearn.model_selection import train_test_split
 
-# # Init Neptune
-# neptune.init(project_qualified_name='dongkyuk/dacon-mnist',
-#              api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTlmOGExYWUtNDRlOS00MTk1LThiOTQtOGY4MDkyZDAxZjY2In0=',
-#              )
-
-# neptune.create_experiment()
+# Init Neptune
+neptune.init(project_qualified_name='dhdroid/Dacon-MNIST',
+             api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZWM3ZDFmYjAtM2FlNS00YzUzLThjYTgtZjU3ZmM1MzJhOWQ4In0=',
+             )
+neptune.create_experiment()
 
 # cuda cache 초기화
 torch.cuda.empty_cache()
@@ -37,7 +36,7 @@ test_loader = DataLoader(test_dataset, batch_size=16)
 # Prepare Model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = MnistModel().to(device)
-print(summary(model, input_size=(1, 3, 256, 256), verbose=0))
+# print(summary(model, input_size=(1, 3, 256, 256), verbose=0))
 
 # Optimizer, loss
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
@@ -59,25 +58,25 @@ for epoch in range(num_epochs):
 
         loss.backward()
         optimizer.step()
-
+        
         # Log and save
         if (i+1) % 10 == 0:
-            val_loss, val_acc = validate(test_loader, model, criterion, epoch, device)        
-            is_best = val_acc > best_accuracy
-            best_accuracy = max(val_acc, best_accuracy)
-
             outputs = outputs > 0.5
             acc = (outputs == targets).float().mean()
-            print(f'Epoch {epoch}: Train loss {loss.item():.5f}, Train Accuracy {acc.item():.5f}')
-            print(f'Epoch {epoch}: Val loss {val_loss:.5f}, Val Accuracy {val_acc:.5f}')
+            neptune.log_metric('train loss', loss.item())
+            neptune.log_metric('train accuracy', acc.item())
+            print(f'Epoch {epoch} / Step: {i+1}: Train loss {loss.item():.5f}, Train Accuracy {acc.item():.5f}')
+    
+    val_loss, val_acc = validate(test_loader, model, criterion, epoch, device)        
+    is_best = val_acc > best_accuracy
+    best_accuracy = max(val_acc, best_accuracy)
 
-            # neptune.log_metric('train loss', loss.item())
-            # neptune.log_metric('train accuracy', acc.item())
-            # neptune.log_metric('validation loss', val_loss)
-            # neptune.log_metric('validation accuracy', val_acc)
-            torch.save(model.state_dict(), 'data/recent.pth')
+    print(f'Epoch {epoch}: Val loss {val_loss:.5f}, Val Accuracy {val_acc:.5f}')
+    neptune.log_metric('validation loss', val_loss)
+    neptune.log_metric('validation accuracy', val_acc)
+    torch.save(model.state_dict(), 'data/recent.pth')
 
-            if is_best:
-                torch.save(model.state_dict(), 'data/best.pth')
+    if is_best:
+        torch.save(model.state_dict(), 'data/best.pth')
 
 
