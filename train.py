@@ -6,6 +6,13 @@ from preprocess import transforms_train, transforms_test
 from model import MnistModel
 from torchinfo import summary
 import torch.optim as optim
+import neptune
+
+neptune.init(project_qualified_name='dongkyuk/dacon-mnist',
+             api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTlmOGExYWUtNDRlOS00MTk1LThiOTQtOGY4MDkyZDAxZjY2In0=',
+             )
+
+neptune.create_experiment()
 
 
 trainset = MnistDataset(
@@ -13,9 +20,10 @@ trainset = MnistDataset(
 testset = MnistDataset(
     'data/test', 'data/sample_submission.csv', transforms_test)
 
-train_loader = DataLoader(trainset, batch_size=256, num_workers=8)
+train_loader = DataLoader(trainset, batch_size=32, num_workers=8)
 test_loader = DataLoader(testset, batch_size=32, num_workers=4)
 
+print(torch.cuda.is_available())
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = MnistModel().to(device)
@@ -43,5 +51,9 @@ for epoch in range(num_epochs):
         if (i+1) % 10 == 0:
             outputs = outputs > 0.5
             acc = (outputs == targets).float().mean()
-            print(f'{epoch}: {loss.item():.5f}, {acc.item():.5f}')
+            print(f'Epoch {epoch}: Train loss {loss.item():.5f}, Train Accuracy {acc.item():.5f}')
+            neptune.log_metric('train loss', loss.item())
+            neptune.log_metric('train accuracy', acc.item())
+            torch.save(model, 'best.pth')
+
 
