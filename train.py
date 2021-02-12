@@ -60,22 +60,21 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-        val_loss, val_acc = validate(test_loader, model, criterion, epoch, device)        
-
         # Log and save
         if (i+1) % 10 == 0:
+            val_loss, val_acc = validate(test_loader, model, criterion, epoch, device)        
             is_best = val_acc > best_accuracy
             best_accuracy = max(val_acc, best_accuracy)
 
             outputs = outputs > 0.5
             acc = (outputs == targets).float().mean()
             print(f'Epoch {epoch}: Train loss {loss.item():.5f}, Train Accuracy {acc.item():.5f}')
-            print(f'Epoch {epoch}: Val loss {val_loss.item():.5f}, Val Accuracy {val_acc.item():.5f}')
+            print(f'Epoch {epoch}: Val loss {val_loss:.5f}, Val Accuracy {val_acc:.5f}')
 
             # neptune.log_metric('train loss', loss.item())
             # neptune.log_metric('train accuracy', acc.item())
-            # neptune.log_metric('validation loss', val_loss.item())
-            # neptune.log_metric('validation accuracy', val_acc.item())
+            # neptune.log_metric('validation loss', val_loss)
+            # neptune.log_metric('validation accuracy', val_acc)
             torch.save(model.state_dict(), 'data/recent.pth')
 
             if is_best:
