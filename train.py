@@ -17,11 +17,9 @@ neptune.create_experiment()
 
 trainset = MnistDataset(
     'data/train', 'data/dirty_mnist_2nd_answer.csv', transforms_train)
-testset = MnistDataset(
-    'data/test', 'data/sample_submission.csv', transforms_test)
+
 
 train_loader = DataLoader(trainset, batch_size=32, num_workers=8)
-test_loader = DataLoader(testset, batch_size=32, num_workers=4)
 
 print(torch.cuda.is_available())
 
