@@ -1,9 +1,10 @@
 from torchvision import transforms
 
-
+# TODO: Add random rotation
 transforms_train = transforms.Compose([
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.RandomVerticalFlip(p=0.5),
+    transforms.RandomRotation(degrees=90),
     transforms.ToTensor(),
     transforms.Normalize(
         [0.485, 0.456, 0.406],

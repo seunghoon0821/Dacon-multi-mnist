@@ -15,6 +15,3 @@ class TTA(ClassPredictor):
         res = self.model(patches)
         res = res.cpu().detach().numpy()
         return res
-    
-
-

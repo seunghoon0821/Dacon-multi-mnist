@@ -19,7 +19,7 @@ def validate(test_loader, model, criterion, epoch, device):
             loss = criterion(outputs, targets)
 
             outputs = outputs > 0.5
-            val_acc += (outputs == targets).float().mean()
+            val_acc += (outputs == targets).float().mean()*images.size(0)
             val_loss += loss.item()*images.size(0)
     
     val_loss = val_loss/len(test_loader.dataset)

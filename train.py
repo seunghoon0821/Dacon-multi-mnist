@@ -12,8 +12,8 @@ from validate import validate
 from sklearn.model_selection import train_test_split
 
 # Init Neptune
-neptune.init(project_qualified_name='dhdroid/Dacon-MNIST',
-             api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZWM3ZDFmYjAtM2FlNS00YzUzLThjYTgtZjU3ZmM1MzJhOWQ4In0=',
+neptune.init(project_qualified_name='simonvc/dacon-mnist',
+             api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZjgwYjQ2NWYtMmY0MC00YzNjLWI1OGUtZWU4MDMzNDA2MWNhIn0=',
              )
 neptune.create_experiment()
 
@@ -42,12 +42,15 @@ model = MnistModel().to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 criterion = nn.MultiLabelSoftMarginLoss()
 
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5, verbose=True)
+
 # Train
 num_epochs = 100
-model.train()
+# model.train()
 best_accuracy = 0
 for epoch in range(num_epochs):
     for i, (images, targets) in enumerate(train_loader):
+        model.train()
         optimizer.zero_grad()
 
         images = images.to(device)
@@ -58,9 +61,9 @@ for epoch in range(num_epochs):
 
         loss.backward()
         optimizer.step()
-        
+
         # Log and save
-        if (i+1) % 10 == 0:
+        if (i+1) % 100 == 0:
             outputs = outputs > 0.5
             acc = (outputs == targets).float().mean()
             neptune.log_metric('train loss', loss.item())
@@ -70,13 +73,14 @@ for epoch in range(num_epochs):
     val_loss, val_acc = validate(test_loader, model, criterion, epoch, device)        
     is_best = val_acc > best_accuracy
     best_accuracy = max(val_acc, best_accuracy)
+    scheduler.step(val_loss)
 
     print(f'Epoch {epoch}: Val loss {val_loss:.5f}, Val Accuracy {val_acc:.5f}')
     neptune.log_metric('validation loss', val_loss)
     neptune.log_metric('validation accuracy', val_acc)
-    torch.save(model.state_dict(), 'data/recent.pth')
+    torch.save(model.state_dict(), 'checkpoints/epoch_{}.pth'.format(epoch))
 
     if is_best:
-        torch.save(model.state_dict(), 'data/best.pth')
+        torch.save(model.state_dict(), 'checkpoints/best.pth')
 
 
