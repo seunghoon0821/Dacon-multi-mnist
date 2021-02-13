@@ -11,3 +11,4 @@ Test time augmentation 적용 (회전 + 뒤집기)
 - [ ] Validation 추가 (가능하면 out of fold)
 - [ ] Augmentation 다양하게 (현재는 random rotation)
 - [ ] Hyperparameter tuning
+- [ ] Pseudo Label
