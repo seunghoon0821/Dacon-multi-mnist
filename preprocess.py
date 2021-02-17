@@ -33,7 +33,7 @@ transforms_train = A.Compose([
     A.pytorch.transforms.ToTensor()
 ])
 
-transforms_test = transforms.Compose([
+transforms_test = A.Compose([
     A.Normalize(),
     A.pytorch.transforms.ToTensor()
 ])
