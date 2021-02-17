@@ -1,10 +1,17 @@
 import os
 from typing import Tuple, Sequence, Callable
 import numpy as np
+import torch
 from torch import nn, Tensor
 from torch.utils.data import Dataset, DataLoader
 import csv
 from PIL import Image
+
+def label_smooth(p):
+    if p > 0.5:
+        return p-0.001
+    else:
+        return 0.001
 
 class MnistDataset(Dataset):
     def __init__(self, dir: os.PathLike, image_ids: os.PathLike, transforms: Sequence[Callable]) -> None:
@@ -16,7 +23,9 @@ class MnistDataset(Dataset):
             reader = csv.reader(f)
             next(reader)
             for row in reader:
-                self.labels[int(row[0])] = list(map(int, row[1:]))
+                label_list = list(map(lambda x: float(x), row[1:]))
+                label_list.append(np.sum(label_list))
+                self.labels[int(row[0])] = label_list
 
         self.image_ids = list(self.labels.keys())
 
@@ -31,8 +40,8 @@ class MnistDataset(Dataset):
         target = np.array(self.labels.get(image_id)).astype(np.float32)
 
         if self.transforms is not None:
-            image = self.transforms(image)
-
+            image = np.array(image)
+            image = self.transforms(image=image)['image']
         return image, target
 
 

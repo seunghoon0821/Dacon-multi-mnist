@@ -23,15 +23,16 @@ torch.cuda.empty_cache()
 # Prepare Data
 full_dataset = MnistDataset('data/train', 'data/dirty_mnist_2nd_answer.csv', transforms_train)
 
-train_size = int(0.9 * len(full_dataset))
-test_size = len(full_dataset) - train_size
+# train_size = int(0.9 * len(full_dataset))
+# test_size = len(full_dataset) - train_size
 
-print("Train size : {} / Test size : {}".format(train_size, test_size))
+# print("Train size : {} / Test size : {}".format(train_size, test_size))
 
-train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+# train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
 
-train_loader = DataLoader(train_dataset, batch_size=32)
-test_loader = DataLoader(test_dataset, batch_size=16)
+# train_loader = DataLoader(train_dataset, batch_size=32)
+train_loader = DataLoader(full_dataset, batch_size=32)
+# test_loader = DataLoader(test_dataset, batch_size=16)
 
 # Prepare Model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -39,13 +40,15 @@ model = MnistModel().to(device)
 # print(summary(model, input_size=(1, 3, 256, 256), verbose=0))
 
 # Optimizer, loss
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
-criterion = nn.MultiLabelSoftMarginLoss()
+optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+lambda1 = lambda epoch: 0.65 ** epoch
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1)
+criterion = nn.BCELoss()
 
 # Train
 num_epochs = 100
 model.train()
-best_accuracy = 0
+best_loss = 1e8
 for epoch in range(num_epochs):
     for i, (images, targets) in enumerate(train_loader):
         optimizer.zero_grad()
@@ -53,30 +56,31 @@ for epoch in range(num_epochs):
         images = images.to(device)
         targets = targets.to(device)
 
-        outputs = model(images)
-        loss = criterion(outputs, targets)
+        output_prob, output_cnt = model(images)
+        loss = criterion(output_prob, targets[:, :-1]) + 0.1 * nn.SmoothL1Loss()(torch.sum(output_prob, 1).squeeze(), targets[:, -1:])
 
         loss.backward()
         optimizer.step()
+        scheduler.step()
         
         # Log and save
         if (i+1) % 10 == 0:
-            outputs = outputs > 0.5
-            acc = (outputs == targets).float().mean()
+            output_prob = output_prob > 0.5
+            acc = (output_prob == targets[:, :-1]).float().mean()
             neptune.log_metric('train loss', loss.item())
             neptune.log_metric('train accuracy', acc.item())
             print(f'Epoch {epoch} / Step: {i+1}: Train loss {loss.item():.5f}, Train Accuracy {acc.item():.5f}')
     
     val_loss, val_acc = validate(test_loader, model, criterion, epoch, device)        
-    is_best = val_acc > best_accuracy
-    best_accuracy = max(val_acc, best_accuracy)
+    is_best = val_loss < best_loss
+    best_loss = min(val_loss, best_loss)
 
     print(f'Epoch {epoch}: Val loss {val_loss:.5f}, Val Accuracy {val_acc:.5f}')
     neptune.log_metric('validation loss', val_loss)
     neptune.log_metric('validation accuracy', val_acc)
     torch.save(model.state_dict(), 'data/recent.pth')
 
-    if is_best:
-        torch.save(model.state_dict(), 'data/best.pth')
+    # if is_best:
+    torch.save(model.state_dict(), f'data/model-{epoch}.pth')
 
 

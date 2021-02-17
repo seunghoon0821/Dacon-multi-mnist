@@ -15,14 +15,19 @@ def validate(test_loader, model, criterion, epoch, device):
             images = images.to(device)
             targets = targets.to(device)
             
-            outputs = model(images)
-            loss = criterion(outputs, targets)
-
-            outputs = outputs > 0.5
-            val_acc += (outputs == targets).float().mean()
+            output_prob, output_cnt = model(images)
+            loss = criterion(output_prob, targets[:,:-1]) + 0.1 * nn.L1Loss()(torch.sum(output_prob, 1).squeeze(), targets[:,-1:])
+            # print("output1", outputs)
+            outputs = output_prob > 0.5
+            # print("output2", outputs)
+            val_acc += (outputs == targets[:,:-1]).float().mean()*images.size(0)
+            # print("val acc", val_acc)
             val_loss += loss.item()*images.size(0)
+            # print("val loss", val_loss)
     
     val_loss = val_loss/len(test_loader.dataset)
     val_acc = val_acc/len(test_loader.dataset)
+
+    model.train()
 
     return val_loss, val_acc

@@ -14,7 +14,7 @@ from tta import TTA
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Get Model
 model = MnistModel()
-model.load_state_dict(torch.load('data/best.pth', map_location=device))
+model.load_state_dict(torch.load('data/model-25.pth', map_location=device))
 # print(summary(model, input_size=(1, 3, 256, 256), verbose=0))
 model.to(device)
 model.eval()
@@ -27,15 +27,20 @@ test_loader = DataLoader(testset, batch_size=8, num_workers=4)
 
 # Test time augmentation
 conf = '{"augs":["NO",\
-                "FLIP_LR",\
-                "FLIP_UD",\
                 "ROT90",\
                 "ROT180",\
                 "ROT270"],\
         "mean":"ARITH"}'
-model = TTA(model, device, conf)
 
+class mymodel:
+    def __init__(self):
+        self.model = model 
+    def __call__(self, inputs):
+        outputs, _ = self.model(inputs)
+        return outputs
 
+models = TTA(mymodel(), device, conf)
+    
 # Inference
 batch_size = test_loader.batch_size
 batch_index = 0
@@ -44,12 +49,17 @@ for i, (images, targets) in enumerate(test_loader):
     images = images.permute(0, 2, 3, 1)
     images = images.numpy()
 
-    outputs = model.predict_images(images)
-    outputs = outputs > 0.5
+    outputs = models.predict_images(images)
     outputs = torch.tensor(outputs)
+    ans = np.zeros([outputs.shape[0], 26])
+    for j in range(outputs.shape[0]):
+        # val, idx = torch.topk(outputs[j], int(torch.sum(outputs[j])))
+        for k in range(26):
+            if outputs[j][k] > 0.6:
+                ans[j][k] = 1
     batch_index = i * batch_size
     submit.iloc[batch_index:batch_index+batch_size, 1:] = \
-        outputs.long().squeeze(0).detach().cpu().numpy()
+        ans.astype(np.long)
 
 # Make submission file
 submit.to_csv('data/submit.csv', index=False)
