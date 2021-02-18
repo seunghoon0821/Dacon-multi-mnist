@@ -14,7 +14,7 @@ from tta import TTA
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Get Model
 model = MnistModel()
-model.load_state_dict(torch.load('data/model-25.pth', map_location=device))
+model.load_state_dict(torch.load('data/model-40.pth', map_location=device))
 # print(summary(model, input_size=(1, 3, 256, 256), verbose=0))
 model.to(device)
 model.eval()
@@ -23,7 +23,7 @@ model.eval()
 submit = pd.read_csv('data/sample_submission.csv')
 testset = MnistDataset(
     'data/test', 'data/sample_submission.csv', transforms_test)
-test_loader = DataLoader(testset, batch_size=8, num_workers=4)
+test_loader = DataLoader(testset, batch_size=4, num_workers=4)
 
 # Test time augmentation
 conf = '{"augs":["NO",\
