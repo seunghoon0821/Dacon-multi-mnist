@@ -4,6 +4,8 @@ import numpy as np
 from torch import nn, Tensor
 from torch.utils.data import Dataset, DataLoader
 import csv
+import pandas as pd
+from sklearn.model_selection import KFold
 from PIL import Image
 
 
@@ -40,5 +42,13 @@ class MnistDataset(Dataset):
         if self.transforms is not None:
             image = np.array(image)
             image = self.transforms(image=image)['image']
-            # image = self.transforms(image)
+            # image = self.transforms(image=image)
         return image, target
+
+def split_dataset(path: os.PathLike, num_split:int=5) -> None:
+    df = pd.read_csv(path)
+    kfold = KFold(n_splits=num_split)
+    for fold, (train, valid) in enumerate(kfold.split(df, df.index)):
+        df.loc[valid, 'kfold'] = int(fold)
+
+    df.to_csv('data/split_kfold.csv', index=False)
