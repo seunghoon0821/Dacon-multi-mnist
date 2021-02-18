@@ -13,13 +13,13 @@ from trainval import train, validate
 from sklearn.model_selection import train_test_split
 
 #Init Neptune
-neptune.init(project_qualified_name='simonvc/dacon-mnist',
-             api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZjgwYjQ2NWYtMmY0MC00YzNjLWI1OGUtZWU4MDMzNDA2MWNhIn0=',
-             )
-             
-# neptune.init(project_qualified_name='dongkyuk/dacon-mnist',
-#              api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTlmOGExYWUtNDRlOS00MTk1LThiOTQtOGY4MDkyZDAxZjY2In0=',
+# neptune.init(project_qualified_name='simonvc/dacon-mnist',
+#              api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZjgwYjQ2NWYtMmY0MC00YzNjLWI1OGUtZWU4MDMzNDA2MWNhIn0=',
 #              )
+             
+neptune.init(project_qualified_name='dongkyuk/dacon-mnist',
+             api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTlmOGExYWUtNDRlOS00MTk1LThiOTQtOGY4MDkyZDAxZjY2In0=',
+             )
 
 # neptune.init(project_qualified_name='dhdroid/Dacon-MNIST',
 #              api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZWM3ZDFmYjAtM2FlNS00YzUzLThjYTgtZjU3ZmM1MzJhOWQ4In0=',
@@ -40,10 +40,10 @@ def model_train(fold: int) -> None:
     df_val.drop(['kfold'], axis=1).to_csv(f'data/val-kfold-{fold}.csv', index=False)
 
     train_dataset = MnistDataset('data/train', f'data/train-kfold-{fold}.csv', transforms_train)
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=20, shuffle=True)
 
     val_dataset = MnistDataset('data/train', f'data/val-kfold-{fold}.csv', transforms_test)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=20, shuffle=False)
 
     # Prepare Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -52,13 +52,17 @@ def model_train(fold: int) -> None:
     # Optimizer, loss
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = nn.MultiLabelSoftMarginLoss()
-
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0)
+    
     # Train
     num_epochs = 40
     best_loss = 1
     for epoch in range(num_epochs):
         # Train
         train(train_loader, model, optimizer, criterion, epoch, device)
+        
+        # Update learning rate
+        scheduler.step()
 
         # Validate
         val_loss, val_acc = validate(val_loader, model, criterion, epoch, device)
