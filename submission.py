@@ -27,8 +27,6 @@ test_loader = DataLoader(testset, batch_size=8, num_workers=4)
 
 # Test time augmentation
 conf = '{"augs":["NO",\
-                "FLIP_LR",\
-                "FLIP_UD",\
                 "ROT90",\
                 "ROT180",\
                 "ROT270"],\
