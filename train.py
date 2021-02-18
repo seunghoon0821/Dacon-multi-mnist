@@ -24,6 +24,7 @@ neptune.init(project_qualified_name='simonvc/dacon-mnist',
 # neptune.init(project_qualified_name='dhdroid/Dacon-MNIST',
 #              api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZWM3ZDFmYjAtM2FlNS00YzUzLThjYTgtZjU3ZmM1MzJhOWQ4In0=',
 #              )
+
 neptune.create_experiment()
 
 # cuda cache 초기화
