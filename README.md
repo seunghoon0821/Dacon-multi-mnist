@@ -1,16 +1,18 @@
 # Dacon-multi-mnist
 
 
-현재 점수 : 0.84603
+현재 점수 : 0.87833
 
-Efficientnet B4 Model 37 epochs 
+Efficientnet B4 Model 
 
-Data Augmentation : 회전 + 뒤집기
+Data Augmentation : 회전 
 
-Test time augmentation 적용 (회전 + 뒤집기)
+Out of fold 5개 ensemble
+
+Test time augmentation 적용 (회전)
 
 ## TODO
-- [ ] Out of fold 추가
-- [ ] Augmentation 다양하게 (현재는 random rotation)
+- [x] Out of fold 추가
+- [x] Augmentation 다양하게 (현재는 random rotation)
 - [ ] Hyperparameter tuning
-- [ ] Pseudo Label
+- [ ] ~~Pseudo Label~~

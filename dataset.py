@@ -33,12 +33,10 @@ class MnistDataset(Dataset):
             os.path.join(
                 self.dir, f'{str(image_id).zfill(5)}.png')).convert('RGB')
 
+        target = np.array(self.labels.get(image_id)).astype(np.float32)
         if self.label_smoothing:
-            target = np.array(self.labels.get(image_id).float(
-            ) * (1 - self.smoothing_val) + 0.5 * self.smoothing_val).astype(np.float32)
-        else:
-            target = np.array(self.labels.get(image_id)).astype(np.float32)
-
+            label_smooth = lambda x: x * (1 - self.smoothing_val) + (0.5 * self.smoothing_val)
+            target = label_smooth(target)            
         if self.transforms is not None:
             image = np.array(image)
             image = self.transforms(image=image)['image']
