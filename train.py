@@ -1,7 +1,10 @@
 import torch
-import torch.optim as optim
+# import torch.optim as optim
 import neptune
 import pandas as pd
+import random
+import numpy as np
+import os
 
 from torch.utils.data import DataLoader
 from torch import nn
@@ -11,6 +14,16 @@ from model import MnistModel
 from torchinfo import summary
 from trainval import train, validate
 from sklearn.model_selection import train_test_split
+import torch_optimizer as optim
+
+def seed_everything(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)  # type: ignore
+    torch.backends.cudnn.deterministic = True  # type: ignore
+    torch.backends.cudnn.benchmark = True  # type: ignore
 
 #Init Neptune
 # neptune.init(project_qualified_name='simonvc/dacon-mnist',
@@ -29,6 +42,7 @@ neptune.create_experiment()
 
 # cuda cache 초기화
 torch.cuda.empty_cache()
+
 
 def model_train(fold: int) -> None:
     # Prepare Data
@@ -50,7 +64,15 @@ def model_train(fold: int) -> None:
     model = MnistModel().to(device)
 
     # Optimizer, loss
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    # optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.RAdam(
+        model.parameters(),
+        lr= 1e-3,
+        betas=(0.9, 0.999),
+        eps=1e-8,
+        weight_decay=0,
+    )
+    optimizer = optim.Lookahead(optimizer, k=5, alpha=0.5)
     criterion = nn.MultiLabelSoftMarginLoss()
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0)
     
@@ -68,15 +90,16 @@ def model_train(fold: int) -> None:
         val_loss, val_acc = validate(val_loader, model, criterion, epoch, device)
 
         # Save recent
-        torch.save(model.state_dict(), f'checkpoints/b5_fold-{fold}_epoch-{epoch}.pth')
+        torch.save(model.state_dict(), f'save/dk/checkpoints/b5_fold-{fold}_epoch-{epoch}.pth')
 
         # Save best
         is_best = val_loss < best_loss
         best_loss = min(val_loss, best_loss)
         if is_best:
-            torch.save(model.state_dict(), f'data/b5_fold-{fold}_best.pth')
+            torch.save(model.state_dict(), f'save/dk/b5_fold-{fold}_best.pth')
 
 if __name__ == '__main__':
+    seed_everything()
     split_dataset('data/dirty_mnist_2nd_answer.csv')
 
     model_train(0)
