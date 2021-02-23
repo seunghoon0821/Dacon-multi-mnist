@@ -63,13 +63,13 @@ def model_train(fold: int) -> None:
         val_loss, val_acc = validate(val_loader, model, criterion, epoch, device)
 
         # Save recent
-        torch.save(model.state_dict(), f'checkpoints/fold-{fold}_epoch-{epoch}.pth')
+        torch.save(model.state_dict(), f'checkpoints/b5_fold-{fold}_epoch-{epoch}.pth')
 
         # Save best
         is_best = val_loss < best_loss
         best_loss = min(val_loss, best_loss)
         if is_best:
-            torch.save(model.state_dict(), f'data/fold-{fold}_best.pth')
+            torch.save(model.state_dict(), f'data/b5_fold-{fold}_best.pth')
 
 if __name__ == '__main__':
     split_dataset('data/dirty_mnist_2nd_answer.csv')
