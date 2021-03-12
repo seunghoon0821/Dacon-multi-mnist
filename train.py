@@ -1,6 +1,4 @@
 import torch
-# import torch.optim as optim
-import neptune
 import pandas as pd
 import random
 import numpy as np
@@ -10,20 +8,9 @@ from torch.utils.data import DataLoader
 from torch import nn
 from dataset import MnistDataset, split_dataset
 from preprocess import transforms_train, transforms_test
-from model import MnistModel
-from torchinfo import summary
-from trainval import train, validate
+from model import MnistModel, EfficientNet
 from sklearn.model_selection import train_test_split
-import torch_optimizer as optim
-
-def seed_everything(seed: int = 42):
-    random.seed(seed)
-    np.random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)  # type: ignore
-    torch.backends.cudnn.deterministic = True  # type: ignore
-    torch.backends.cudnn.benchmark = True  # type: ignore
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 #Init Neptune
 # neptune.init(project_qualified_name='simonvc/dacon-mnist',
@@ -43,62 +30,75 @@ neptune.create_experiment()
 # cuda cache 초기화
 torch.cuda.empty_cache()
 
+def seed_everything(seed=42):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
 
 def model_train(fold: int) -> None:
     # Prepare Data
-    df = pd.read_csv('data/split_kfold.csv')
+    df = pd.read_csv(os.path.join(config.save_dir, 'split_kfold.csv'))
     df_train = df[df['kfold'] != fold].reset_index(drop=True)
     df_val = df[df['kfold'] == fold].reset_index(drop=True)
 
-    df_train.drop(['kfold'], axis=1).to_csv(f'data/train-kfold-{fold}.csv', index=False)
-    df_val.drop(['kfold'], axis=1).to_csv(f'data/val-kfold-{fold}.csv', index=False)
+    df_train.drop(['kfold'], axis=1).to_csv(os.path.join(
+        config.save_dir, f'train-kfold-{fold}.csv'), index=False)
+    df_val.drop(['kfold'], axis=1).to_csv(os.path.join(
+        config.save_dir, f'val-kfold-{fold}.csv'), index=False)
 
-    train_dataset = MnistDataset('data/train', f'data/train-kfold-{fold}.csv', transforms_train)
-    train_loader = DataLoader(train_dataset, batch_size=20, shuffle=True)
+    train_dataset = MnistDataset(os.path.join(config.data_dir, 'train'), os.path.join(
+        config.save_dir, f'train-kfold-{fold}.csv'), transforms_train)
+    val_dataset = MnistDataset(
+        os.path.join(config.data_dir, 'train'), os.path.join(config.save_dir, f'val-kfold-{fold}.csv'), transforms_test)
 
-    val_dataset = MnistDataset('data/train', f'data/val-kfold-{fold}.csv', transforms_test)
-    val_loader = DataLoader(val_dataset, batch_size=20, shuffle=False)
-
-    # Prepare Model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = MnistModel().to(device)
-
-    # Optimizer, loss
-    # optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    optimizer = optim.RAdam(
-        model.parameters(),
-        lr= 1e-3,
-        betas=(0.9, 0.999),
-        eps=1e-8,
-        weight_decay=0,
+    model = MnistModel(EfficientNet())
+    checkpoint_callback = ModelCheckpoint(
+        monitor='val_loss',
+        dirpath=os.path.join(save_dir, f'{fold}'),
+        filename='{epoch:02d}-{val_loss:.2f}.pth',
+        save_top_k=5,
+        mode='min',
     )
-    optimizer = optim.Lookahead(optimizer, k=5, alpha=0.5)
-    criterion = nn.MultiLabelSoftMarginLoss()
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0)
-    
-    # Train
-    num_epochs = 40
-    best_loss = 1
-    for epoch in range(num_epochs):
-        # Train
-        train(train_loader, model, optimizer, criterion, epoch, device)
-        
-        # Update learning rate
-        scheduler.step()
+    early_stopping = EarlyStopping(
+        monitor='val_loss',
+        mode='min',
+    )
 
-        # Validate
-        val_loss, val_acc = validate(val_loader, model, criterion, epoch, device)
+    if config.device == 'tpu':
+        train_loader = DataLoader(train_dataset, batch_size=16, num_workers=10, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=2, num_workers=10, shuffle=False)
+        trainer = Trainer(
+            tpu_cores=8, 
+            num_sanity_val_steps=-1,
+            deterministic=True, 
+            max_epochs=config.epochs, 
+            callbacks=[checkpoint_callback, early_stopping]
+        )
+    else:
+        train_loader = DataLoader(train_dataset, batch_size=16, num_workers=10, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=8, num_workers=10, shuffle=False)
+        trainer = Trainer(
+            gpus=1, 
+            num_sanity_val_steps=-1,
+            deterministic=True, 
+            max_epochs=config.epochs, 
+            callbacks=[checkpoint_callback, early_stopping]
+        )
 
-        # Save recent
-        torch.save(model.state_dict(), f'save/dk/checkpoints/b5_fold-{fold}_epoch-{epoch}.pth')
-
-        # Save best
-        is_best = val_loss < best_loss
-        best_loss = min(val_loss, best_loss)
-        if is_best:
-            torch.save(model.state_dict(), f'save/dk/b5_fold-{fold}_best.pth')
+    trainer.fit(model, train_loader, val_loader)
 
 if __name__ == '__main__':
+    class config:
+        seed = 42
+        epochs = 15
+        data_dir = 'data/'
+        save_dir = 'save/dk'
+        device = 'gpu'
+
     seed_everything()
     split_dataset('data/dirty_mnist_2nd_answer.csv')
 

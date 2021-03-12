@@ -14,7 +14,7 @@ from tta import TTA
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Get Model
 model = MnistModel()
-model.load_state_dict(torch.load('data/b5_fold-0_best.pth', map_location=device))
+model.load_state_dict(torch.load('save/dk/b5_fold-0_best.pth', map_location=device))
 # print(summary(model, input_size=(1, 3, 256, 256), verbose=0))
 model.to(device)
 model.eval()

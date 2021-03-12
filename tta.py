@@ -13,6 +13,7 @@ class TTA(ClassPredictor):
         patches = patches.permute(0, 3, 1, 2).to(self.device)
 
         res = self.model(patches)
+        res = torch.sigmoid(res)
         res = res.cpu().detach().numpy()
         return res
     

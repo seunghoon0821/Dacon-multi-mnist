@@ -1,6 +1,7 @@
 import torch
 import pandas as pd
 import numpy as np
+import os
 
 from torchinfo import summary
 from torch.utils.data import DataLoader
@@ -12,36 +13,22 @@ from tta import TTA
 
 # Set Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 # Get Model
 model0 = MnistModel().to(device)
-model0.load_state_dict(torch.load('data/b5_fold-0_best.pth', map_location=device))
+model0.load_state_dict(torch.load('save/dk/b5_fold-0_best.pth', map_location=device))
 
 model1 = MnistModel().to(device)
-model1.load_state_dict(torch.load('data/b5_fold-1_best.pth', map_location=device))
+model1.load_state_dict(torch.load('save/dk/b5_fold-1_best.pth', map_location=device))
 
 model2 = MnistModel().to(device)
-model2.load_state_dict(torch.load('data/b5_fold-2_best.pth', map_location=device))
+model2.load_state_dict(torch.load('save/dk/b5_fold-2_best.pth', map_location=device))
 
 model3 = MnistModel().to(device)
-model3.load_state_dict(torch.load('data/b5_fold-3_best.pth', map_location=device))
+model3.load_state_dict(torch.load('save/dk/b5_fold-3_best.pth', map_location=device))
 
 model4 = MnistModel().to(device)
-model4.load_state_dict(torch.load('data/b5_fold-4_best.pth', map_location=device))
-# model0 = MnistModel().to(device)
-# model0.load_state_dict(torch.load('checkpoints/b5_fold-0_epoch-38.pth', map_location=device))
-
-# model1 = MnistModel().to(device)
-# model1.load_state_dict(torch.load('checkpoints/b5_fold-1_epoch-38.pth', map_location=device))
-
-# model2 = MnistModel().to(device)
-# model2.load_state_dict(torch.load('checkpoints/b5_fold-2_epoch-38.pth', map_location=device))
-
-# model3 = MnistModel().to(device)
-# model3.load_state_dict(torch.load('checkpoints/b5_fold-3_epoch-38.pth', map_location=device))
-
-# model4 = MnistModel().to(device)
-# model4.load_state_dict(torch.load('checkpoints/b5_fold-4_epoch-38.pth', map_location=device))
-
+model4.load_state_dict(torch.load('save/dk/b5_fold-4_best.pth', map_location=device))
 
 
 model0.eval()
@@ -86,7 +73,7 @@ for i, (images, targets) in enumerate(test_loader):
 
     # outputs = (outputs0 + outputs1 + outputs2 + outputs3) / 4
 
-    outputs = outputs > 0.5
+    outputs = outputs > 0.7
     outputs = torch.tensor(outputs)
     batch_index = i * batch_size
     submit.iloc[batch_index:batch_index+batch_size, 1:] = \
