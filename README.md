@@ -1,18 +1,12 @@
 # Dacon-multi-mnist
 
+🥇 4th place solution for Dacon Computer Vision Competition
 
-현재 점수 : 0.87833
+Public LB : 0.88233
+Private LB : 0.88446
 
-Efficientnet B4 Model 
-
-Data Augmentation : 회전 
-
-Out of fold 5개 ensemble
-
-Test time augmentation 적용 (회전)
-
-## TODO
-- [x] Out of fold 추가
-- [x] Augmentation 다양하게 (현재는 random rotation)
-- [ ] Hyperparameter tuning
-- [ ] ~~Pseudo Label~~
+## Techniques
+- Efficientnet B5 (Adam, Cross entropy Loss)
+- Rotation Augmentation (Traing, Test time)
+- 5 fold Ensemble
+- 0.6 Test time Probability Threshold 
