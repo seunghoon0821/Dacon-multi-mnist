@@ -7,6 +7,6 @@ Private LB : 0.88446
 
 ## Techniques
 - Efficientnet B5 (Adam, Cross entropy Loss)
-- Rotation Augmentation (Traing, Test time)
+- Rotation Augmentation (Training, Test time)
 - 5 fold Ensemble
 - 0.6 Test time Probability Threshold 
